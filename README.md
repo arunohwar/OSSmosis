@@ -99,6 +99,76 @@ mvn clean install
 ```
 Then deploy war file in tomcat and 
 
+---------------------------------------------------------------------------------
+The working of the UI Charts --
+D3.js is the underlying main library that we have used to draw the charts. We have used jQuery to make AJAX calls.
+
+How the Chart works – 
+When the web page is loaded for the first time then an initial financial data is loaded by an AJAX call to the server.
+There we have options box where we can select one of the chart type OHLC, CandleStick or Line. For each type of chart we have Zoom-In and Zoom-Out functionality for which buttons have been provided. Further for each chart we have Streaming functionality with Go Live button. This would get the real time data over websockets. 
+
+Technical Walkthrough of the working of chart – 
+The initial page load – 
+The initial data is fetched and initial line chart is drawn in this method  - fetchDataAndDrawLineChart(). This method will make an AJAX call to server and the server would return stub data from server file amzn-data-v2.json. If the call is successful then the AJAX response data would be sorted on date field with this method sortChartData(). Once the data has been sorted then it would be parsed so that the date field is in d3 format “%Y-%m-%d “. The next step would be drawing the grid of the chart along with both axes. This is done in method drawChartPlot(). This method would create a svg element and append it to div with id “chart”.  Then we create the x and y axes and append them to the chart. We created the ticks and values for both axes in this method. 
+
+The Line Chart – 
+The line chart is drawn by identifying the coordinates of the points and then connecting the points  with line paths. To calculate the coordinates for each point, the stock date is used as x-coordinate and stock closing value is used as y-coordinate. 
+```
+g = svgContainer.append("svg:g");	   
+g.append("svg:path").attr("d", lineFunc(data))
+```
+
+The CandleStick Chart – 
+The candlestick has a rectangle and a vertical line.  The top and bottom (height)of the rectangle denotes the Open and Close of the day. The vertical line denotes the High and Low of the day. If the Close is higher than Open the rectangle is filled by green else red color. 
+```
+ svgContainer.selectAll("rect")
+  .data(data)
+  .enter().append("svg:rect")
+  .attr("x", function(d) { return xScale(d.Date) - (0.125 * (width)/data.length); })
+  .attr("y", function(d) {return yScale(max(d.Open, d.Close)) ;})		  
+  .attr("height", function(d) { return yScale(min(d.Open, d.Close))-yScale(max(d.Open, d.Close));})
+  .attr("width", function(d) { return 0.25 * (width)/data.length; })
+```  
+
+The OHLC Chart – 
+The OHLC has one vertical line denoting High-Low of the day and two horizontal lines denoting Open-Close of the day.  All of them created using svg:line passing x and y coordinates of both points of line.
+```  
+ svgContainer.selectAll("line.High-Low")
+      .data(data)
+      .enter().append("svg:line")
+      .attr("class", "High-Low")
+      .attr("x1", function(d) { return xScale(d.Date) ;})
+      .attr("x2", function(d) { return xScale(d.Date) ;})		    
+      .attr("y1", function(d) { return yScale(d.High);})
+      .attr("y2", function(d) { return yScale(d.Low); })
+      
+svgContainer.selectAll("line.Open")
+      .data(data)
+      .enter().append("svg:line")
+      .attr("class", "Open")
+      .attr("x1", function(d) { return xScale(d.Date) /*+ 0.25 * margin*/ ;})
+      .attr("x2", function(d) { return xScale(d.Date) + 0.50 * margin ;})		    
+      .attr("y1", function(d) { return yScale(d.Close);})
+      .attr("y2", function(d) { return yScale(d.Close); })
+      
+svgContainer.selectAll("line.Close")
+      .data(data)
+      .enter().append("svg:line")
+      .attr("class", "Close")
+      .attr("x1", function(d) { return xScale(d.Date) - 0.5 * margin ;})
+      .attr("x2", function(d) { return xScale(d.Date)  ;})	
+      .attr("y1", function(d) { return yScale(d.Open);})
+      .attr("y2", function(d) { return yScale(d.Open); })
+```  
+Zoom-In functionality --
+Zoom-in means showing less data , here we would be reducing the number of dates on x-axis with each zoom-in click.
+```
+zoomData.push(data.shift());
+```
+
+Real Time data --
+The real time data is obtained via websockets. Once new data is updated then we remove the left most date from x axis, recalculate the x and y grids (y value will change depending upon value of new data) and redraw the entire chart. The redraw is necessary because everything has to be shifted left side even if y-value is not affected.
+---------------------------------------------------------------------------------
 
 To Test this project:
 -------
